@@ -52,7 +52,7 @@ def missing_binaries(conan_api: ConanAPI, parser, *args):
 
         exported_list = export_versions_output["exported_with_versions"]
 
-        exported_list = [RecipeReference(*ref.split("/")) for ref in exported_list if "volk" in ref]
+        exported_list = [RecipeReference(*ref.split("/")) for ref in exported_list]
 
         out.info(f"Exported {len(exported_list)} references")
 
