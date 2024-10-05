@@ -37,30 +37,9 @@ def conflicts(conan_api: ConanAPI, parser, *args):
     if False and len(list_output["results"]["Local Cache"]) != 0:
         raise ConanException("The cache must be empty to run this command")
 
-    #export_versions_output = conan_api.command.run(f"cci:export-all-versions -p {os.path.join(args.repo_path, 'recipes')}")
+    export_versions_output = conan_api.command.run(f"cci:export-all-versions -p {os.path.join(args.repo_path, 'recipes')}")
 
-    #exported_list = export_versions_output["exported_with_versions"]
-
-    exported_list = [
-        "bear/3.0.21",
-        "daw_json_link/3.24.1",
-        "librasterlite/1.1g",
-        "logr/0.1.0",
-        "logr/0.6.0",
-        "mbits-lngs/0.7.6",
-        "openassetio/1.0.0-alpha.9",
-        "opencascade/7.5.0",
-        "opencascade/7.6.0",
-        "opencascade/7.6.2",
-        "openmvg/2.0",
-        "qcustomplot/2.1.0",
-        "qcustomplot/2.1.1",
-        "samarium/1.0.1",
-        "seadex-essentials/2.1.3",
-        "seadex-genesis/2.0.0",
-        "ulfius/2.7.11"
-    ]
-
+    exported_list = export_versions_output["exported_with_versions"]
 
     exported_list = [RecipeReference(*ref.split("/")) for ref in exported_list]
 
@@ -105,10 +84,7 @@ def generate_conflicts(conan_api, reference_list, profile_map, profile_folder, r
                 settings_build = profile_info.get('build_settings', [])
                 conf_host = profile_info.get('host_conf', [])
                 conf_build = profile_info.get('build_conf', [])
-                continue_group = True
                 for cppstd in cppstd_values:
-                    if not continue_group:
-                        break
                     updated_settings_host = settings_host + [f'compiler.cppstd={cppstd}']
 
                     profile_host, profile_build = compute_profiles(conan_api,
@@ -134,7 +110,8 @@ def generate_conflicts(conan_api, reference_list, profile_map, profile_folder, r
                                 "configuration": f"{host_profile} - {build_profile} - {cppstd}",
                                 "conflict": str(e)
                             })
-                        continue_group = False
+                        # No need to check further cppstds
+                        break
                     except Exception as e:
                         import traceback
                         out.error(f"Error processing {reference}: {e}")
