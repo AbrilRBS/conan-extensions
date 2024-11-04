@@ -7,7 +7,7 @@ from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
 from conan.api.conan_api import ConanAPI
 from conans.client.graph.install_graph import InstallGraph
-from conans.errors import ConanException
+from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
 
 
@@ -39,20 +39,15 @@ def range_update_missing(conan_api: ConanAPI, parser, *args):
     out.info(f"Loaded {len(profile_map['profiles'])} base profiles")
 
     list_output = conan_api.command.run("list *")
-    if not args.packages_to_build:
-        if len(list_output["results"]["Local Cache"]) != 0:
-            raise ConanException("The cache must be empty to run this command, and the new reference must be present in the CCI clone")
 
-        export_versions_output = conan_api.command.run(f"cci:export-all-versions -p {os.path.join(args.repo_path, 'recipes')}")
-    else:
-        with open(args.packages_to_build) as f:
-            precomputed_packages_to_build = json.load(f)
-        export_versions_output = {
-            "exported_with_versions": [args.reference,
-                                       *[ref for ref in list_output["results"]["Local Cache"] if ref.split("/")[0] in precomputed_packages_to_build]]
-        }
+    if len(list_output["results"]["Local Cache"]) != 0:
+        raise ConanException("The cache must be empty to run this command, and the new reference must be present in the CCI clone")
+
+    export_versions_output = conan_api.command.run(f"cci:export-all-versions -p {os.path.join(args.repo_path, 'recipes')}")
 
     exported_list = export_versions_output["exported_with_versions"]
+    # exported_list = [ref for ref in list_output["results"]["Local Cache"]]
+    print(exported_list)
     if args.reference not in exported_list:
         raise ConanException(f"The new reference {args.reference} was not found in the exported list. Please ensure it is present in the CCI clone")
     exported_list = [RecipeReference(*ref.split("/")) for ref in exported_list]
@@ -125,77 +120,83 @@ def generate_build_packages(conan_api, new_reference, reference_list, build_args
         out.info(f"Checking group {i + 1}/{total_groups} of references ({group})")
 
         for reference in references:
-            profiles = expand_profiles(conan_api, reference, profile_map)
-            continue_reference = True
-            for profile_info in profiles:
-                if not continue_reference:
-                    break
-                host_profile = profile_info['host_profile']
-                build_profile = profile_info['build_profile']
-                cppstd_values = profile_info['cppstd']
-
-                options_host = profile_info.get('host_options', [])
-                options_build = profile_info.get('build_options', [])
-                settings_host = profile_info.get('host_settings', [])
-                settings_build = profile_info.get('build_settings', [])
-                conf_host = profile_info.get('host_conf', [])
-                conf_build = profile_info.get('build_conf', [])
-                for cppstd in cppstd_values:
-                    updated_settings_host = settings_host + [f'compiler.cppstd={cppstd}']
-
-                    profile_host, profile_build = compute_profiles(conan_api,
-                                                                   profile_host=host_profile,
-                                                                   settings_host=updated_settings_host,
-                                                                   options_host=options_host,
-                                                                   conf_host=conf_host,
-                                                                   profile_build=build_profile,
-                                                                   settings_build=settings_build,
-                                                                   options_build=options_build,
-                                                                   conf_build=conf_build,
-                                                                   profile_folder=profile_folder)
-                    try:
-                        out.info(f"Checking {reference} with profile {host_profile} {build_profile} c++{cppstd}")
-                        deps_graph = conan_api.graph.load_graph_requires([reference], tool_requires=[],
-                                                                         profile_host=profile_host,
-                                                                         profile_build=profile_build,
-                                                                         lockfile=None, remotes=remotes,
-                                                                         update=None, check_updates=False)
-                        deps_graph.report_graph_error()
-                        conan_api.graph.analyze_binaries(deps_graph,
-                                                         build_mode=build_args,
-                                                         remotes=[],
-                                                         update=None,
-                                                         lockfile=None)
-                        if deps_graph.nodes[1].binary == "Invalid":
-                            continue
-
-                        # If openssl is part of my dependencies that affect my pkgid, then I need to be rebuilt
-                        requires = deps_graph.nodes[1].conanfile.info.requires.serialize()
-                        for req in requires:
-                            req_name, req_pattern = req.split("/", 1)
-                            if req_name == new_reference.name and version_repr_matches(req_pattern, new_reference.version):
-                                # Remains to be seen if this is a version range or pinned requirement
-                                packages_to_build.append(reference.name)
-
-                                # Calculate the install order
-                                install_graph = InstallGraph(deps_graph, order_by="recipe")
-                                install_orders.append(install_graph)
-
-                                # If one in the group has openssl, assume we will need to build the rest of the references
-                                continue_reference = False
-                                break
-                        out.success(f"Valid calculation for {reference}")
-                        # No need to check further cppstsd
+            try:
+                profiles = expand_profiles(conan_api, reference, profile_map)
+                continue_reference = True
+                for profile_info in profiles:
+                    if not continue_reference:
                         break
-                    except Exception as e:
-                        import traceback
-                        out.error(f"Error processing {reference}: {e}")
+                    host_profile = profile_info['host_profile']
+                    build_profile = profile_info['build_profile']
+                    cppstd_values = profile_info['cppstd']
+
+                    options_host = profile_info.get('host_options', [])
+                    options_build = profile_info.get('build_options', [])
+                    settings_host = profile_info.get('host_settings', [])
+                    settings_build = profile_info.get('build_settings', [])
+                    conf_host = profile_info.get('host_conf', [])
+                    conf_build = profile_info.get('build_conf', [])
+                    for cppstd in cppstd_values:
+                        updated_settings_host = settings_host + [f'compiler.cppstd={cppstd}']
+
+                        profile_host, profile_build = compute_profiles(conan_api,
+                                                                       profile_host=host_profile,
+                                                                       settings_host=updated_settings_host,
+                                                                       options_host=options_host,
+                                                                       conf_host=conf_host,
+                                                                       profile_build=build_profile,
+                                                                       settings_build=settings_build,
+                                                                       options_build=options_build,
+                                                                       conf_build=conf_build,
+                                                                       profile_folder=profile_folder)
+                        try:
+                            out.info(f"Checking {reference} with profile {host_profile} {build_profile} c++{cppstd}")
+                            deps_graph = conan_api.graph.load_graph_requires([reference], tool_requires=[],
+                                                                             profile_host=profile_host,
+                                                                             profile_build=profile_build,
+                                                                             lockfile=None, remotes=remotes,
+                                                                             update=None, check_updates=False)
+                            deps_graph.report_graph_error()
+                            conan_api.graph.analyze_binaries(deps_graph,
+                                                             build_mode=build_args,
+                                                             remotes=[],
+                                                             update=None,
+                                                             lockfile=None)
+                            if deps_graph.nodes[1].binary == "Invalid":
+                                continue
+
+                            # If openssl is part of my dependencies that affect my pkgid, then I need to be rebuilt
+                            requires = deps_graph.nodes[1].conanfile.info.requires.serialize()
+                            for req in requires:
+                                req_name, req_pattern = req.split("/", 1)
+                                if req_name == new_reference.name and version_repr_matches(req_pattern, new_reference.version):
+                                    # Remains to be seen if this is a version range or pinned requirement
+                                    packages_to_build.append(reference.name)
+
+                                    # Calculate the install order
+                                    install_graph = InstallGraph(deps_graph, order_by="recipe")
+                                    install_orders.append(install_graph)
+
+                                    # If one in the group has openssl, assume we will need to build the rest of the references
+                                    continue_reference = False
+                                    break
+                            out.success(f"Valid calculation for {reference}")
+                            # No need to check further cppstsd
+                            break
+                        except Exception as e:
+                            import traceback
+                            out.error(f"Error processing {reference}: {e}")
+            except Exception as e:
+                import traceback
+                out.error(f"Error processing {reference}: {e}")
     return packages_to_build, install_orders
 
 
 def version_repr_matches(version_repr, version):
     # 1.2.Z -> 1.2.3
     # (1, 1), (2, 2), (Z, 3)
+    # 1.2.3#revision > 1.2.3 should also match
+    version_repr = version_repr.split("#")[0]
     for reprt_item, version_item in zip(version_repr.split('.'), str(version).split('.')):
         if not str(reprt_item).isdigit():
             return True

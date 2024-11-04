@@ -7,7 +7,7 @@ import copy
 from conan.api.output import ConanOutput, cli_out_write
 from conan.cli.command import conan_command
 from conan.api.conan_api import ConanAPI
-from conans.errors import ConanException
+from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
 from conans.client.graph.graph_error import GraphConflictError
 
@@ -49,18 +49,22 @@ def conflicts(conan_api: ConanAPI, parser, *args):
 
     remotes = conan_api.remotes.list(["conancenter"])
 
-    conflicts = generate_conflicts(conan_api, exported_list, profile_map, args.profiles_path, remotes)
+    self_conflicts, dependencies_by_ref = generate_conflicts(conan_api, exported_list, profile_map, args.profiles_path, remotes)
 
-    if not conflicts:
+    with open("dependencies_by_ref.json", "w") as f:
+        json.dump(dependencies_by_ref, f, indent=2)
+
+    if not self_conflicts:
         out.info("No packages need to be rebuilt")
         return
 
-    return conflicts
+    return self_conflicts
 
 
 def generate_conflicts(conan_api, reference_list, profile_map, profile_folder, remotes):
     # Result variables
     conflicts = {}
+    dependencies_by_ref = {}
     out = ConanOutput()
     grouped_references = {}
     for reference in reference_list:
@@ -103,6 +107,9 @@ def generate_conflicts(conan_api, reference_list, profile_map, profile_folder, r
                                                                          profile_build=profile_build,
                                                                          lockfile=None, remotes=remotes,
                                                                          update=None, check_updates=False)
+                        for node in deps_graph.nodes:
+                            for node_direct_dep in node.conanfile.dependencies.filter({"direct": True}).values():
+                                dependencies_by_ref.setdefault(str(node.conanfile.ref), []).append([str(reference), str(node_direct_dep.ref)])
                         try:
                             deps_graph.report_graph_error()
                         except GraphConflictError as e:
@@ -115,7 +122,7 @@ def generate_conflicts(conan_api, reference_list, profile_map, profile_folder, r
                     except Exception as e:
                         import traceback
                         out.error(f"Error processing {reference}: {e}")
-    return conflicts
+    return conflicts, dependencies_by_ref
 
 
 def expand_profiles(conan_api, reference, profile_map):

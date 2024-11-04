@@ -7,7 +7,7 @@ from conan.api.output import ConanOutput, cli_out_write
 from conan.cli.command import conan_command
 from conan.api.conan_api import ConanAPI
 from conans.client.graph.install_graph import InstallGraph
-from conans.errors import ConanException
+from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
 
 
