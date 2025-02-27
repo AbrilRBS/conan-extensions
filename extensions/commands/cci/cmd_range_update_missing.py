@@ -68,11 +68,12 @@ def range_update_missing(conan_api: ConanAPI, parser, *args):
 
     out.info(f"Generated {len(packages_to_build)} packages to build")
 
+    with open("packages_to_build.json", "w") as f:
+        json.dump(packages_to_build, f)
+
     if not install_graphs:
         raise ConanException("No install orders were generated")
 
-    with open("packages_to_build.json", "w") as f:
-        json.dump(packages_to_build, f)
 
     merged_install_graphs = install_graphs[0]
     if len(install_graphs) > 1:
@@ -174,7 +175,7 @@ def generate_build_packages(conan_api, new_reference, reference_list, build_args
                                     packages_to_build.append(reference.name)
 
                                     # Calculate the install order
-                                    install_graph = InstallGraph(deps_graph, order_by="recipe")
+                                    install_graph = InstallGraph(deps_graph, order_by="configuration")
                                     install_orders.append(install_graph)
 
                                     # If one in the group has openssl, assume we will need to build the rest of the references
