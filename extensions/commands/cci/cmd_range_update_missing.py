@@ -6,7 +6,6 @@ import yaml
 from conan.api.output import ConanOutput
 from conan.cli.command import conan_command
 from conan.api.conan_api import ConanAPI
-from conans.client.graph.install_graph import InstallGraph
 from conan.errors import ConanException
 from conans.model.recipe_ref import RecipeReference
 
@@ -44,7 +43,6 @@ def range_update_missing(conan_api: ConanAPI, parser, *args):
         raise ConanException("The cache must be empty to run this command, and the new reference must be present in the CCI clone")
 
     export_versions_output = conan_api.command.run(f"cci:export-all-versions -p {os.path.join(args.repo_path, 'recipes')}")
-
     exported_list = export_versions_output["exported_with_versions"]
     # exported_list = [ref for ref in list_output["results"]["Local Cache"]]
     print(exported_list)
@@ -70,41 +68,41 @@ def range_update_missing(conan_api: ConanAPI, parser, *args):
 
     with open("packages_to_build.json", "w") as f:
         json.dump(packages_to_build, f)
-
-    if not install_graphs:
-        raise ConanException("No install orders were generated")
-
-
-    merged_install_graphs = install_graphs[0]
-    if len(install_graphs) > 1:
-        for install_graph in install_graphs[1:]:
-            merged_install_graphs.merge(install_graph)
-        # merged_install_graphs.reduce()
-
-    out.info(f"Merged {len(install_graphs)} install orders")
-
-    install_build_order = merged_install_graphs.install_build_order()
-
-    # Remove anything not in the packages to build, those are the only ones we care about,
-    # The rest are here as a byproduct of the install order generation, as we don't check for
-    # actual missing binaries
-    for_tapaholes = []
-    for batch in install_build_order["order"]:
-        new_level = []
-        for item in batch:
-            if item["ref"].split("/")[0] in packages_to_build:
-                new_level.append(item["ref"].split("#")[0])
-        if new_level:
-            for_tapaholes.append(new_level)
-
-    out.info(f"Generated {len(for_tapaholes)} levels of build orders")
-    out.info(json.dumps(for_tapaholes, indent=4))
-
-    with open("super_duper_build_order.json", "w") as f:
-        json.dump(install_build_order, f)
-
-    with open("final_order.json", "w") as f:
-        json.dump(for_tapaholes, f)
+    #
+    # if not install_graphs:
+    #     raise ConanException("No install orders were generated")
+    #
+    #
+    # merged_install_graphs = install_graphs[0]
+    # if len(install_graphs) > 1:
+    #     for install_graph in install_graphs[1:]:
+    #         merged_install_graphs.merge(install_graph)
+    #     # merged_install_graphs.reduce()
+    #
+    # out.info(f"Merged {len(install_graphs)} install orders")
+    #
+    # install_build_order = merged_install_graphs.install_build_order()
+    #
+    # # Remove anything not in the packages to build, those are the only ones we care about,
+    # # The rest are here as a byproduct of the install order generation, as we don't check for
+    # # actual missing binaries
+    # for_tapaholes = []
+    # for batch in install_build_order["order"]:
+    #     new_level = []
+    #     for item in batch:
+    #         if item["ref"].split("/")[0] in packages_to_build:
+    #             new_level.append(item["ref"].split("#")[0])
+    #     if new_level:
+    #         for_tapaholes.append(new_level)
+    #
+    # out.info(f"Generated {len(for_tapaholes)} levels of build orders")
+    # out.info(json.dumps(for_tapaholes, indent=4))
+    #
+    # with open("super_duper_build_order.json", "w") as f:
+    #     json.dump(install_build_order, f)
+    #
+    # with open("final_order.json", "w") as f:
+    #     json.dump(for_tapaholes, f)
 
 
 def generate_build_packages(conan_api, new_reference, reference_list, build_args, profile_map, profile_folder, remotes):
@@ -174,9 +172,9 @@ def generate_build_packages(conan_api, new_reference, reference_list, build_args
                                     # Remains to be seen if this is a version range or pinned requirement
                                     packages_to_build.append(reference.name)
 
-                                    # Calculate the install order
-                                    install_graph = InstallGraph(deps_graph, order_by="configuration")
-                                    install_orders.append(install_graph)
+                                    # # Calculate the install order
+                                    # install_graph = InstallGraph(deps_graph, order_by="configuration")
+                                    # install_orders.append(install_graph)
 
                                     # If one in the group has openssl, assume we will need to build the rest of the references
                                     continue_reference = False
