@@ -3,26 +3,25 @@ import os
 
 import requests
 import subprocess
-from conan.api.model import ListPattern, MultiPackagesList, RecipeReference
-from conan.api.output import ConanOutput
-from conan.cli.command import conan_command, OnceArgument
+from conan.api.model import ListPattern, RecipeReference
+from conan.cli.command import conan_command
 from conan.errors import ConanException
-from conan.cli.formatters.compare.compare import format_compare_html, format_compare_txt, \
-    format_compare_json
+from conan.cli.formatters.report import format_diff_html, format_diff_txt, format_diff_json
 
 
 def output_json(results):
     print(json.dumps(results, indent=2))
 
 
-@conan_command(group="Conan Center Index",formatters={"text": format_compare_txt,
-                              "json": format_compare_json,
-                              "html": format_compare_html})
+@conan_command(group="Conan Center Index",formatters={"text": format_diff_txt,
+                              "json": format_diff_json,
+                              "html": format_diff_html})
 def diff(conan_api, parser, *args):
     """
     Diffs the contents of a new-version PR against the current latest version of the Conan Center Index.
     """
     parser.add_argument("pr_number", type=int, help="The PR number to diff against the latest version.")
+    parser.add_argument("name", help="The name of the recipe to diff, e.g., 'zlib'.")
     parser.add_argument("local_repo_name", help="The name of the local index repository, e.g., 'conan-center-index'.",)
 
     args = parser.parse_args(*args)
@@ -30,7 +29,7 @@ def diff(conan_api, parser, *args):
     local_repo_name = args.local_repo_name
 
     # Get list of references in the local repository
-    ref_pattern = ListPattern("*", rrev=None, prev=None)
+    ref_pattern = ListPattern(f"{args.name}/*", rrev=None, prev=None)
 
     local_remote = conan_api.remotes.get(local_repo_name)
 
