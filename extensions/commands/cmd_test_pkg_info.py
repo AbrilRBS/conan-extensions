@@ -41,7 +41,7 @@ def test_pkg_info(conan_api: ConanAPI, parser, *args):
 
     recipe_path = conan_api.local.get_conanfile_path(args.recipe, cwd, py=True)
     # get path for latest revision of the recipe in cache which will be used in the test
-    latest_ref = conan_api.local.latest_recipe_revision(ref)
+    latest_ref = conan_api.list.latest_recipe_revision(ref, None)
     export_path = conan_api.cache.export_path(latest_ref)
     cache_path = conan_api.local.get_conanfile_path(export_path, cwd, py=True)
     backup_recipe_path = cache_path + ".bak"
